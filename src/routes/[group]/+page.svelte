@@ -132,6 +132,7 @@
 
             const itemsResponse = await query.get({
                 sort: sortMethod,
+                limit: 100,
                 direction: sortDirection,
                 limit: 24,
             });
@@ -228,6 +229,7 @@
                 query = query.collections(selectedCollection.key);
             const itemsResponse = await query.items().top().get({
                 sort: sortMethod,
+                limit: 100,
                 direction: sortDirection,
                 limit: 24,
             });
