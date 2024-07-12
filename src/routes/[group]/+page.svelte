@@ -11,6 +11,9 @@
 
     let viewMode = "grid"; // New state for view mode
 
+    let currentRequest = null;
+    let currentRequestId = 0;
+
     let sortFlashText = "";
     let sortFlashTimeout;
 
@@ -111,14 +114,14 @@
         const collection = event.detail;
         selectedCollection = collection;
         loadingItems = loadingNewCategory = true;
-        // start = 0;
-        // hasMore = true;
 
         const collectionParam =
             collection.name === "All Items"
                 ? ""
                 : `?collection=${encodeCollectionName(collection.name)}`;
         goto(`${$page.url.pathname}${collectionParam}`, { replaceState: true });
+
+        const requestId = ++currentRequestId;
 
         try {
             const query =
@@ -132,15 +135,20 @@
 
             const itemsResponse = await query.get({
                 sort: sortMethod,
-                limit: 100,
                 direction: sortDirection,
-                limit: 24,
+                limit: 100,
             });
-            items = itemsResponse.getData();
+
+            // Only update items if this is still the current request
+            if (requestId === currentRequestId) {
+                items = itemsResponse.getData();
+            }
         } catch (error) {
             console.error("Error fetching collection items:", error);
         } finally {
-            loadingItems = loadingNewCategory = false;
+            if (requestId === currentRequestId) {
+                loadingItems = loadingNewCategory = false;
+            }
         }
     }
 
@@ -222,6 +230,8 @@
             flashSortText(sortDirection === "desc" ? "Z to A" : "A to Z");
         }
 
+        const requestId = ++currentRequestId;
+
         loadingItems = true;
         try {
             let query = api().library("group", data.param);
@@ -229,15 +239,20 @@
                 query = query.collections(selectedCollection.key);
             const itemsResponse = await query.items().top().get({
                 sort: sortMethod,
-                limit: 100,
                 direction: sortDirection,
-                limit: 24,
+                limit: 100,
             });
-            items = itemsResponse.getData();
+
+            // Only update items if this is still the current request
+            if (requestId === currentRequestId) {
+                items = itemsResponse.getData();
+            }
         } catch (error) {
             console.error("Error fetching sorted items:", error);
         } finally {
-            loadingItems = loadingNewCategory = false;
+            if (requestId === currentRequestId) {
+                loadingItems = loadingNewCategory = false;
+            }
         }
     }
 
