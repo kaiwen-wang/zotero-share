@@ -1,6 +1,6 @@
 <script>
     export let item;
-    export let loading = false; // New prop for loading state
+    export let loading = false;
     export let viewMode = "grid";
 
     function getAuthors(item) {
@@ -23,24 +23,142 @@
         return "Author not specified";
     }
 
-    function getCoverUrl(item) {
+    async function getCoverUrl(item) {
+        // First check if we already have a cached coverUrl
+        if (item.data?.coverUrl) {
+            try {
+                const cache = await caches.open("zotero-images");
+                const response = await cache.match(item.data.coverUrl);
+                if (response) {
+                    return item.data.coverUrl;
+                }
+            } catch (error) {
+                console.error("Error checking image cache:", error);
+            }
+        }
+
+        // If no cached URL or cache miss, generate new URL
+        let url = null;
         if (item.ISBN) {
-            return `https://covers.openlibrary.org/b/isbn/${item.ISBN.split(" ")[0]}-M.jpg`;
+            url = `https://covers.openlibrary.org/b/isbn/${item.ISBN.split(" ")[0]}-M.jpg`;
         } else if (item.DOI) {
-            return `https://covers.openlibrary.org/b/doi/${item.DOI}-M.jpg`;
+            url = `https://covers.openlibrary.org/b/doi/${item.DOI}-M.jpg`;
         } else if (item.ISSN) {
-            return `https://covers.openlibrary.org/b/issn/${item.ISSN}-M.jpg`;
-        } else {
-            return null;
+            url = `https://covers.openlibrary.org/b/issn/${item.ISSN}-M.jpg`;
+        }
+
+        if (url) {
+            try {
+                // Try to fetch and cache the image
+                const cache = await caches.open("zotero-images");
+                const response = await fetch(url);
+                if (response.ok) {
+                    await cache.put(url, response.clone());
+                    // Store the URL in the item data for future use
+                    if (item.data) {
+                        item.data.coverUrl = url;
+                    } else {
+                        item.data = { coverUrl: url };
+                    }
+                    return url;
+                }
+            } catch (error) {
+                console.error("Error caching image:", error);
+            }
+        }
+
+        return null;
+    }
+
+    let coverUrlPromise;
+    $: {
+        if (!loading) {
+            coverUrlPromise = getCoverUrl(item);
         }
     }
 
-    $: coverUrl = loading ? null : getCoverUrl(item);
+    export let dialog;
+
+    function openDialog(event) {
+        if (!loading) {
+            dialog.showModal();
+        }
+    }
+
+    function closeDialog(event) {
+        if (event.target === dialog) {
+            dialog.close();
+        }
+    }
+
+    function handleKeydown(event) {
+        if (event.key === "Escape") {
+            console.log("Escape key pressed");
+            // Add your desired action here
+        }
+    }
+
+    function handleImageError(event) {
+        event.target.style.display = "none";
+        event.target.nextElementSibling.style.display = "block";
+    }
 </script>
 
+<dialog
+    bind:this={dialog}
+    on:click={closeDialog}
+    on:keydown={handleKeydown}
+    role="presentation"
+    class="focus:outline-none"
+>
+    <div class="flex border-black border">
+        <div
+            class="w-64 h-96 border-r border-black flex items-center justify-center"
+        >
+            {#if loading}
+                <div class="w-full h-full bg-gray-200 animate-pulse"></div>
+            {:else}
+                {#await coverUrlPromise}
+                    <div class="w-full h-full bg-gray-200 animate-pulse"></div>
+                {:then coverUrl}
+                    {#if coverUrl}
+                        <img
+                            src={coverUrl}
+                            alt={item.title}
+                            class="w-full h-full"
+                            on:error={handleImageError}
+                        />
+                        <span class="text-gray-400 text-xs hidden"
+                            >No cover available</span
+                        >
+                    {:else}
+                        <span class="text-gray-400 text-xs"
+                            >No cover available</span
+                        >
+                    {/if}
+                {/await}
+            {/if}
+        </div>
+
+        <div class="w-[52rem] px-4 py-2">
+            <p class="font-serif text-2xl capitalize">{item.title}</p>
+            <hr class="my-2" />
+            <p>This book</p>
+        </div>
+    </div>
+</dialog>
+
 {#if viewMode === "grid"}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
-        class="bg-white border border-gray-700 h-fit relative hover:-translate-y-1 cursor-pointer"
+        on:click={openDialog}
+        class="
+        bg-white border border-gray-700
+        h-fit relative
+        hover:-translate-y-1 z-40
+        {loading ? '' : 'cursor-pointer'}
+        "
         title={loading ? "Loading..." : item.title}
     >
         <div
@@ -51,13 +169,29 @@
         >
             {#if loading}
                 <div class="w-full h-full bg-gray-200 animate-pulse"></div>
-            {:else if coverUrl}
-                <img src={coverUrl} alt={item.title} class="" />
             {:else}
-                <span class="text-gray-400 text-xs">No cover available</span>
+                {#await coverUrlPromise}
+                    <div class="w-full h-full bg-gray-200 animate-pulse"></div>
+                {:then coverUrl}
+                    {#if coverUrl}
+                        <img
+                            src={coverUrl}
+                            alt={item.title}
+                            class=""
+                            on:error={handleImageError}
+                        />
+                        <span class="text-gray-400 text-xs hidden"
+                            >No cover available</span
+                        >
+                    {:else}
+                        <span class="text-gray-400 text-xs"
+                            >No cover available</span
+                        >
+                    {/if}
+                {/await}
             {/if}
         </div>
-        <div class="px-4 pt-3 pb-3 bg-white z-10 flex space-between flex-col">
+        <div class="px-3 py-2 bg-white z-10 flex space-between flex-col">
             {#if loading}
                 <div
                     class="h-4 bg-gray-200 rounded w-3/4 mb-2 animate-pulse"
@@ -68,7 +202,7 @@
                 <div class="h-3 bg-gray-200 rounded w-1/4 animate-pulse"></div>
             {:else}
                 <h2
-                    class="text-md font-test leading-tight line-clamp-2 capitalize"
+                    class="text-sm font-serif leading-tight line-clamp-2 capitalize"
                     title={item.title}
                 >
                     {item.title}
@@ -95,18 +229,28 @@
         <div class="flex-shrink-0 w-16 h-16 mr-4">
             {#if loading}
                 <div class="w-full h-full bg-gray-200 animate-pulse"></div>
-            {:else if coverUrl}
-                <img
-                    src={coverUrl}
-                    alt={item.title}
-                    class="w-full h-full object-cover"
-                />
             {:else}
-                <div
-                    class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs"
-                >
-                    No cover
-                </div>
+                {#await coverUrlPromise}
+                    <div class="w-full h-full bg-gray-200 animate-pulse"></div>
+                {:then coverUrl}
+                    {#if coverUrl}
+                        <img
+                            src={coverUrl}
+                            alt={item.title}
+                            class="w-full h-full object-cover"
+                            on:error={handleImageError}
+                        />
+                        <span class="text-gray-400 text-xs hidden"
+                            >No cover available</span
+                        >
+                    {:else}
+                        <div
+                            class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs"
+                        >
+                            No cover
+                        </div>
+                    {/if}
+                {/await}
             {/if}
         </div>
         <div class="flex-grow">
@@ -120,7 +264,7 @@
                 <div class="h-3 bg-gray-200 rounded w-1/4 animate-pulse"></div>
             {:else}
                 <h2
-                    class="text-md font-test leading-tight line-clamp-1 capitalize"
+                    class="text-md font-serif leading-tight line-clamp-1 capitalize"
                     title={item.title}
                 >
                     {item.title}

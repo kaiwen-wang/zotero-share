@@ -2,12 +2,12 @@
     import { onMount } from "svelte";
     import api from "zotero-api-client";
     import CollectionTree from "$lib/CollectionTree.svelte";
+    import CollectionTree2 from "$lib/CollectionTree2.svelte";
     import ItemCard from "$lib/ItemCard.svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
 
     import Header from "$lib/Header.svelte";
-    import CollectionTree2 from "$lib/CollectionTree2.svelte";
 
     let viewMode = "grid"; // New state for view mode
 
@@ -19,6 +19,16 @@
 
     function toggleViewMode() {
         viewMode = viewMode === "grid" ? "list" : "grid";
+    }
+
+    function removeDuplicates(itemsArray) {
+        const uniqueItems = new Map();
+        itemsArray.forEach((item) => {
+            if (!uniqueItems.has(item.key)) {
+                uniqueItems.set(item.key, item);
+            }
+        });
+        return Array.from(uniqueItems.values());
     }
 
     function flashSortText(text) {
@@ -62,9 +72,7 @@
                     .get({ limit: 100 }),
             ]);
 
-            // hasMore = !!itemsResponse.getRelLinks().next;
-            // start = 24;
-            items = itemsResponse.getData();
+            items = removeDuplicates(itemsResponse.getData());
             console.log(items);
             collections = organizeCollections(
                 collectionsResponse.getData(),
@@ -76,16 +84,7 @@
         } finally {
             loadingCollections = loadingItems = false;
         }
-
-        // bottomObserver = new IntersectionObserver(
-        //     (entries) => {
-        //         if (entries[0].isIntersecting) loadMoreItems();
-        //     },
-        //     { rootMargin: "100px" },
-        // );
-        // if (bottomMarker) bottomObserver.observe(bottomMarker);
     });
-
     // async function loadMoreItems() {
     //     if (isLoading || !hasMore || loadingNewCategory) return;
     //     isLoading = true;
@@ -141,7 +140,7 @@
 
             // Only update items if this is still the current request
             if (requestId === currentRequestId) {
-                items = itemsResponse.getData();
+                items = removeDuplicates(itemsResponse.getData());
             }
         } catch (error) {
             console.error("Error fetching collection items:", error);
@@ -245,7 +244,7 @@
 
             // Only update items if this is still the current request
             if (requestId === currentRequestId) {
-                items = itemsResponse.getData();
+                items = removeDuplicates(itemsResponse.getData());
             }
         } catch (error) {
             console.error("Error fetching sorted items:", error);
@@ -299,15 +298,18 @@
         }
 
         const key = event.key.toLowerCase();
+
         if (key === "d" || key === "t") {
             event.preventDefault();
             const button = document.getElementById(
                 key === "d" ? "sortByDate" : "sortByTitle",
             );
             if (button) button.click();
+            new Audio("blip1.mp4").play();
         } else if (key === "c") {
             event.preventDefault();
             toggleCount();
+            new Audio("blip1.mp4").play();
         } else if (key === "g" || key === "r") {
             event.preventDefault();
             if (
@@ -316,6 +318,7 @@
             ) {
                 toggleViewMode();
             }
+            new Audio("blip1.mp4").play();
         } else if (key === "arrowleft" || key === "arrowright") {
             event.preventDefault();
             const direction = key === "arrowright" ? "next" : "previous";
@@ -328,6 +331,7 @@
                 selectedCollection = nextCollection;
                 handleCollectionClick({ detail: nextCollection });
             }
+            new Audio("blip1.mp4").play();
         }
     }
 
@@ -352,11 +356,14 @@
     ></div>
 
     <Header />
-    <div class="container mx-auto py-8">
-        <div class="flex flex-col md:flex-row relative">
+    <div class="container mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 relative">
             <!-- Collections (left side) -->
             <div
-                class=" sticky top-0 w-full md:w-1/4 pr-4 mb-4 md:mb-0 mr-8 h-fit"
+                class="
+            hidden lg:block lg:col-span-4 lg:sticky lg:top-0
+            h-fit
+            "
             >
                 <div
                     class=" border-b border-gray-700 relative pb-2 mb-8 min-h-12 flex items-end justify-between"
@@ -410,8 +417,9 @@
                         />
                     </table> -->
                     <div class="flex gap-2 mt-4 justify-end">
-                        <div
+                        <button
                             class="p-2 w-full bg-gray-50 border border-black flex place-content-center"
+                            on:click={() => new Audio("blip1.mp4").play()}
                         >
                             <svg
                                 width="32"
@@ -426,9 +434,10 @@
                                     clip-rule="evenodd"
                                 ></path></svg
                             >
-                        </div>
-                        <div
+                        </button>
+                        <button
                             class="p-2 w-full bg-gray-50 border border-black flex place-content-center"
+                            on:click={() => new Audio("blip1.mp4").play()}
                         >
                             <svg
                                 width="32"
@@ -443,15 +452,15 @@
                                     clip-rule="evenodd"
                                 ></path></svg
                             >
-                        </div>
+                        </button>
                     </div>
                 {/if}
             </div>
 
             <!-- Items (right side) -->
-            <div class="w-full md:w-3/4">
+            <div class="lg:col-span-8">
                 <div
-                    class=" border-b border-gray-700 sticky top-0 z-20 bg-[rgb(255,244,212)] pb-2 mb-8 flex justify-between items-end min-h-12"
+                    class=" border-b border-gray-700 z-50 pb-2 mb-8 flex justify-between items-end min-h-12"
                 >
                     <div class="text-2xl font-medium leading-none">
                         {selectedCollection
@@ -477,6 +486,8 @@
                                     class:bg-gray-200={sortMethod ===
                                         "dateAdded"}
                                     on:click={() => handleSort("dateAdded")}
+                                    on:click={() =>
+                                        new Audio("blip1.mp4").play()}
                                 >
                                     <span class="underline">D</span>ate {sortMethod ===
                                     "dateAdded"
@@ -490,6 +501,8 @@
                                     class="hover:bg-gray-200 cursor-pointer px-4 py-0.5"
                                     class:bg-gray-200={sortMethod === "title"}
                                     on:click={() => handleSort("title")}
+                                    on:click={() =>
+                                        new Audio("blip1.mp4").play()}
                                 >
                                     <span class="underline">T</span>itle {sortMethod ===
                                     "title"
@@ -510,6 +523,8 @@
                                     class="hover:bg-gray-200 cursor-pointer px-4 flex items-center justify-center gap-2"
                                     class:bg-gray-200={viewMode === "list"}
                                     on:click={toggleViewMode}
+                                    on:click={() =>
+                                        new Audio("blip1.mp4").play()}
                                 >
                                     <div>
                                         <span class="underline">R</span>ows
@@ -534,6 +549,8 @@
                                     class="hover:bg-gray-200 cursor-pointer flex items-center justify-center gap-2 px-4 py-0.5 border-l border-black"
                                     class:bg-gray-200={viewMode === "grid"}
                                     on:click={toggleViewMode}
+                                    on:click={() =>
+                                        new Audio("blip1.mp4").play()}
                                 >
                                     <div>
                                         <span class="underline">G</span>rid
@@ -560,7 +577,7 @@
 
                 <div
                     class={viewMode === "grid"
-                        ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+                        ? " grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
                         : ""}
                 >
                     {#if loadingItems}
@@ -568,7 +585,7 @@
                             <ItemCard loading={true} item={{}} {viewMode} />
                         {/each}
                     {:else}
-                        {#each items as item}
+                        {#each items as item (item.key)}
                             <ItemCard {item} {viewMode} />
                         {/each}
                     {/if}
