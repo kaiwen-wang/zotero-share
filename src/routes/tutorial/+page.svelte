@@ -114,9 +114,8 @@
 
         <p>
             Categorization and enumerating (listing out everything like 1, 2, 3)
-            is a fundamental aspect of human organization: we live in three
-            spatial dimensions. URLs are like a file system. We group organisms
-            into different taxa.
+            is a fundamental aspect of human organization. URLs are like a file
+            system. We group organisms into different taxa.
         </p>
 
         <p>
