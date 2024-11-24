@@ -110,6 +110,9 @@
                 <a href="https://curius.app/"> Curius</a>
             </li>
             <li>
+                <a href="https://www.are.na/"> Arena</a>
+            </li>
+            <li>
                 <a href="https://www.coolthingsifoundontheinternet.com/brian"
                     >coolthingsifoundontheinternet.com</a
                 >
